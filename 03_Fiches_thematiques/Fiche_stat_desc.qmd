@@ -2,13 +2,13 @@
 
 ## Tâches concernées et recommandations
 
-Dans cette fiche, on suppose que le besoin de l'utilisateur est de passer d'une table à un tableau de statistiques descriptives prêt à être analysé. Bien souvent, en amont, l'utilisateur a dû réaliser des manipulations sur une ou plusieurs tables (jointures, créations de variables, etc.) pour construire les variables "prêtes à l'emploi", mais ces opérations ne font pas partie du spectre de cette fiche. De même, en aval, les questions de pure customisation de mise en forme de tableaux ou de réalisation de graphiques ne font pas l'objet de cette fiche.
+Dans cette fiche, on suppose que le besoin de l'utilisateur est de passer d'une table à un tableau de statistiques descriptives prêt à être analysé. Bien souvent, en amont, l'utilisateur a dû réaliser des manipulations sur une ou plusieurs tables (jointures, créations de variables, etc.) pour construire les variables "prêtes à l'emploi", mais ces opérations ne font pas partie du spectre de cette fiche. De même, en aval, les questions de pure customisation de mise en forme de tableaux, de sémiologie graphique, ou de réalisation de graphiques, ne font pas l'objet de cette fiche. Enfin, les notions de performances comparées des différentes solutions présentées, ne sont pas évoquées.
 
 ::: {.callout-note}
 
-- Ce sujet - la fabrication de tableaux - est au coeur des activités d'un chargé d'études travaillant à l'Insee ou en SSM, qui seront peut-être plus particulièrement concernés par cette fiche.
+- Ce sujet - la fabrication de tableaux - est au coeur des activités d'un chargé d'études travaillant à l'Insee ou en SSM, qui seront peut-être plus particulièrement concernés par cette fiche. Une difficulté qui remonte fréquemment est la lourdeur de code pour afficher les **marges** dans le tableau, qui constituent pourtant des points de comparaison indispensables pour les analyses. Les marges sont aussi souvent appelés "totaux", mais on préfèrera dans la suite parler de "marges", le terme étant jugé moins ambigü lorsque la statistique demandée n'est pas une somme.
 
-- Contrairement à Sas qui proposait la proc tabulate par exemple, R ne propose pas de procédure "de référence" pour construire un tableau de statistiques descriptives. En outre, même parmi les statisticiens qui n'utilisent pas ou plus Sas, beaucoup ont pour habitude d'avoir une première étape de constitution de résultats en R, puis une seconde étape de retravail de tableaux directement via un tableur de type Excel ou Calc (avec des tableaux croisés dynamiques). Pourtant, internaliser la production de tableaux de synthèse dans sa chaîne de traitements comprend de nombreux avantages, parmi lesquels l'automatisation de tâches de mise en forme, la reproductibilité des analyses, ou encore l'intégration directe du tableau à un rapport.
+- Contrairement à Sas qui proposait la proc tabulate par exemple, R ne propose pas de procédure "de référence" pour construire un tableau de statistiques descriptives. En outre, même parmi les statisticiens qui n'utilisent pas ou plus Sas, beaucoup ont pour habitude d'avoir une première étape de constitution de résultats en R, puis une seconde étape de retravail de tableaux directement via un tableur de type Excel ou Calc (avec des tableaux croisés dynamiques). Pourtant, internaliser la production de tableaux de synthèse dans sa chaîne de traitements comprend de nombreux avantages, parmi lesquels l'automatisation de tâches de mise en forme, la reproductibilité des analyses, ou encore l'intégration directe de tableaux dans des rapports (qmd, Rmd), et ainsi s'éviter des allers/retours avec un tableaur, chronophages et souvent risques d'erreur.
 
 - En réalité, R offre de nombreuses possibilités pour internaliser l'ensemble des étapes de réalisation d'un tableau de statistiques descriptives, pas toujours connues. Ainsi, de nombreux packages de statistiques descriptives ont été développés, souvent pour répondre à des besoins métiers spécifiques, et chacun présentant donc des avantages et des inconvénients. Il est nécessaire de maintenir une veille régulière sur ce sujet, des solutions satisfaisantes pouvant faire jour à tout moment.
 
@@ -16,30 +16,229 @@ Dans cette fiche, on suppose que le besoin de l'utilisateur est de passer d'une 
 
 :::
 
-## Savoir poser son problème
+## Avant de parler R : savoir poser son problème
+
+### Statistiques descriptives : ça veut dire quoi ?
+
+"Décrire" des données, cela signifie les résumer, les synthétiser, réduire la dimension d'une table pour arriver à quelque chose de plus facile à analyser et faciliter la recherche de faits saillants.
+
+Être à l'aise pour réaliser rapidement des tableaux complets de statistiques descriptives permet d'explorer "à la volée" un nombre de variables potentiellement grand, et ainsi ne pas manquer un message intéressant. Cela peut aussi servir à rechercher des regroupements pertinents de modalités, 
+à rechercher la statistique la plus pertinente (médiane, moyenne, quantile ...).
+
+### Le cadre : traduire une problématique en variables / statistique
+
+Dans la suite, on décide de se placer dans le cadre où l'on cherche à savoir comment se décline :
+
+-   une **statistique** (moyenne, somme, comptage, médiane, pourcentage ligne ou colonne, etc.)
+-   appliquée à **une variable quantitative**
+-   selon les modalités d'**une ou plusieurs variable(s) qualitative(s)**.
+
+En pratique, la grande majorité des problématiques à traiter lorsque l'on réalise une étude, peuvent se ramener à cette situation.
+
+*Remarque* : la variable quantitative peut être une indicatrice, un poids, ou tout simplement la constante 1.
+
+Quelques exemples pour s'en convaincre :
+
+- âge médian par mode de transport
+
+[var. quali. = mode de transport, var. quanti. = âge, stat. = médiane]{style="color: grey;"}
+
+-   part d'utilisation de la voiture par tranche d'âge et par sexe
+
+[var. quali. = tranche d'âge et sexe, var. quanti. = indicatrice d'utilisation de la voiture, stat. = moyenne]{style="color: grey;"}
+
+-   effectif selon la CSP et le sexe dans une source non pondérée
+
+[var. quali. = CSP et sexe, var. quanti. = 1, stat. = somme]{style="color: grey;"}
+
+-   part de chaque CSP par sexe dans une source pondérée
+
+[var. quali. = CSP et sexe, var. quanti. = poids dans le RP, stat. = somme + pourcentage colonne]{style="color: grey;"}
+
+-   âge de la femme doyenne de chaque département
+
+[filtre préalable sur les femmes, var. quali. = département, var. quanti. = âge, stat. = max]{style="color: grey;"}
 
 ## Syntaxes courantes
 
 ### R de base
 
-### dplyr
+Sans entrer dans les détails, quelques fonctions de R de base permettent de représenter dans la console des premiers tableaux croisés simples :
+
+- `table` : comptages, possiblement à double entrée (attention l'option useNa ("ifany", "no", "always") est importante)
+
+- `prop.table` : idem avec option 1 ou 2 pour un pourcentage ligne ou colonne
+
+- `addmargins` : à utiliser en complément pour afficher les marges (ou totaux)
+
+```{r rbase}
+data(iris)
+table(iris$Species, useNA = "ifany")
+iris$new_var <- cut(x = runif(nrow(iris)), 
+                    breaks = seq(0, 1, 1/3), 
+                    labels = LETTERS[1:3])
+mon_premier_tableau <- table(iris$Species, iris$new_var)
+mon_premier_tableau
+mon_deuxieme_tableau <- 100 * addmargins(prop.table(mon_premier_tableau, 1))
+mon_deuxieme_tableau
+```
+
+Bien que pratiques dans certains contextes, ces fonctions offrent très peu de flexibilité sur le format d'entrée et de sortie des objets, sont peu esthétiques (déconseillées par exemple pour des rapports) et ne s'articulent pas avec le *pipe* (`%>%` ou `|>`).
+
+### `dplyr`
+
+`dplyr` n'est pas à proprement parler un package de statistiques descriptives. Néanmoins, les instructions **`group_by`** et **`summarise`** (ou summarize) suivi de la statistique souhaitée (mean, median, n(), nth(), min(), max(), etc.) permettent de réaliser les calculs.
+
+-   **`group_by`** : possibilité de mettre autant de variables que l'on veut, et des fonctions de ces variables ;
+
+-   **`summarise`** : options .by, .groups ;
+
+-   pour plusieurs variables et / ou plusieurs fonctions : utiliser les fonctions **`across`** et **`pick`**, qui ont remplacé \*\_at, \*\_if et \*\_all. Vignette utile ici sur le sujet : [ici](https://dplyr.tidyverse.org/articles/colwise.html) ;
+
+Limites : lourdeurs de codes pour représenter les marges
+
+```{r dplyr}
+library(dplyr)
+
+# Calculer la moyenne d'une variable quanti. selon les modalités d'une variable quali.
+iris |>
+  group_by(Species) |> 
+  summarise(moy = mean(Sepal.Length, na.rm = TRUE))
+
+# Idem mais sur plusieurs variables en même temps + fonction dans le group_by
+iris |>
+  group_by(toupper(Species)) |> 
+  summarise(
+    across(c(Sepal.Length, Sepal.Width, Petal.Length, Petal.Width), 
+           function(x) mean(x, na.rm = TRUE))
+  )
+
+# Exemple plus complexe
+iris |>
+  group_by(Species) |> 
+  summarise(
+    across(
+      .cols = starts_with("Petal"), 
+      .fns = list(moy = \(x) mean(x, na.rm = TRUE),
+                  ecartype = \(x) sd(x, na.rm = TRUE)),
+      .names = "{col}_{fn}")
+  ) |> 
+  knitr::kable()
+
+```
 
 ### data.table
-
-### Des avantages et des inconvénients
 
 ## Packages dédiés
 
 ### Tableau de synthèse
 
+Parler de janitor, gtsummary, tables, crosstable, ...
+
 ### Exemples reproductibles
 
 ## Le package `tabloid`, une solution maison pour l'Insee
 
-### Tableau de synthèse
+### Pourquoi encore un autre package ?
 
-### Exemple reproductible
+Certains besoins courants ne sont pas (encore ?) couverts par d'autres packages :
 
+-   besoin systématique d'avoir les marges intermédiaires ;
+
+-   besoin de pondérer ses observations ;
+
+-   contrainte éditoriale de rendre "cohérents" les arrondis dans les figures ;
+
+-   envie d'avoir une alerte si certains croisements deviennent trop petits ;
+
+-   envie d'avoir une syntaxe consistante, qui "coche toutes les cases" en même temps.
+
+Le package `tabloid` vise à faciliter la réalisation de tableaux croisés de statistiques descriptives ;
+
+-   il est conçu pour des besoins usuels des chargés d'études à l'Insee ;
+
+-   il propose une syntaxe unique pour la plupart des statistiques usuelles, et peut s'enchaîner avec des `%>%` ou des `|>`, à la suite par exemple d'instructions en `dplyr` ;
+
+-   les tableaux croisés produits peuvent être réutilisés :
+
+    -   soit via l'export en .xlsx,
+    
+    -   soit via la génération d'un tableau en html, pour insertion dans un .Rmd ou .qmd.
+
+Le package est documenté par des vignettes, qui fournissent plus de détails que cette présentation.
+
+*Remarque : le package `tabloid` n'est pas sur le CRAN. Il faut donc l'installer depuis le dépôt gitlab.insee.fr ou InseeFrLab où il est hébergé.*
+
+### La syntaxe
+
+**La fonction principale**
+
+-   **`tab_build`** : pour construire le coeur du tableau
+<!-- ![](images/schema_tab_build.png){width="400%"} -->
+
+-   valeurs possibles pour le paramètre `stat` : "mean", "median", "count", "sum", "min", "max", "quantile", "weighted_mean", "weighted_sum"
+
+**Les fonctions de customisation**
+
+-   **`tab_pct`** : pour calculer des pourcentages lignes ou colonnes
+-   **`tab_mask`** : pour blanchir certaines cellules sous un seuil (de comptage ou de valeur)
+-   **`tab_round`** : pour afficher avec le bon niveau d'arrondi et éventuellement gérer la cohérence des sommes à 100 %
+
+**Les fonctions d'affichage**
+
+-   **`tab_render`** : pour afficher le joli tableau → conseil de l'appliquer à chaque fois
+-   **`tab_xls`** : pour exporter le joli tableau dans un .xlsx → conseil de ne pas en abuser sauf besoin particulier de repasser par Calc (diffusion, envoi partenaire, etc.)
+
+
+### Exemple
+
+```{r tabloid}
+# # Installation du package
+# # install.packages("remotes")
+# remotes::install_git("https://gitlab.insee.fr/espace-charges-etudes/boite-outils/tableaux",
+#                      dependencies = TRUE)
+# library(tabloid)
+# library(dplyr)
+# library(readr)
+# 
+# # Exemple extrait de la vignette sur la base des prénoms
+# prenoms <- readr::read_rds(
+#   system.file("data",
+#               "prenoms.rds",
+#               package = "tabloid"))
+# 
+# # Analyse de 5 prénoms mixtes en 2020 sur 2 régions
+# # Avec pourcentage colonne et arrondi cohérent
+# prenoms |>
+#  filter(annais == "2020",
+#       prenom %in% c("Charlie", "Alix", "Eden", "Sasha", "Camille") &
+#                lib_reg %in% c("Occitanie", "Pays de la Loire")) |>
+#  tab_build(var_rows = c(lib_reg, sexe),
+#            var_cols = prenom,
+#            var_stat = nombre,
+#            lab_total = "Total",
+#            stat = "sum") |>
+#  tab_pct(pct = "row") |>
+#  tab_round(n = 0,
+#            guarantee_100 = TRUE,
+#            option = "lowest_lie",
+#            verbose = TRUE)
+# 
+# # Analyse de 2 prénoms mixtes sur 2 régions sur 2 années éloignées
+# prenoms |>
+#   filter(prenom %in% c("Charlie", "Camille") &
+#            lib_reg %in% c("Occitanie", "Pays de la Loire") &
+#            annais %in% c("1900", "2020")) |>
+#   tab_build(var_rows = c(lib_reg, prenom),
+#             var_cols = c(annais, sexe),
+#             var_stat = nombre,
+#             stat = "sum") |>
+#   tab_render(title = "Camille & Charlie : des prénoms plus souvent féminins en 2020 qu'en 1900",
+#              note = "Source : Insee - base des prénoms",
+#              lab_rows = c("Région", "Prénom"),
+#              lab_cols = list(sexe = c("Garçon", "Fille")))
+
+```
 
 <!-- ### Quels sont les avantages d'`arrow`? -->
 
