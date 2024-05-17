@@ -1,16 +1,18 @@
 # Réaliser des tableaux de statistiques descriptives {#statdesc}
 
-## Tâches concernées et recommandations
+## Positionnement de cette fiche
 
-Dans cette fiche, on suppose que le besoin de l'utilisateur est de passer d'une table à un tableau de statistiques descriptives prêt à être analysé. Bien souvent, en amont, l'utilisateur a dû réaliser des manipulations sur une ou plusieurs tables (jointures, créations de variables, etc.) pour construire les variables "prêtes à l'emploi", mais ces opérations ne font pas partie du spectre de cette fiche. De même, en aval, les questions de pure customisation de mise en forme de tableaux, de sémiologie graphique, ou de réalisation de graphiques, ne font pas l'objet de cette fiche. Enfin, les notions de performances comparées des différentes solutions présentées, ne sont pas évoquées.
+Dans cette fiche, on suppose que le besoin de l'utilisateur est de passer d'une table à un tableau de statistiques descriptives prêt à être analysé. Bien souvent, en amont, l'utilisateur a dû réaliser des manipulations sur une ou plusieurs tables (jointures, créations de variables, etc.) pour construire les variables "prêtes à l'emploi", mais ces opérations ne font pas partie du spectre de cette fiche. De même, en aval, les questions de pure customisation de mise en forme de tableaux, de sémiologie graphique, ou de réalisation de graphiques, ne font pas l'objet de cette fiche. Enfin, les notions de performances comparées des différentes solutions présentées, ne seront pas évoquées ici, même si elles peuvent devenir un critère dans le choix de la solution en présence de données volumineuses.
 
 ::: {.callout-note}
 
-- Ce sujet - la fabrication de tableaux - est au coeur des activités d'un chargé d'études travaillant à l'Insee ou en SSM, qui seront peut-être plus particulièrement concernés par cette fiche. Une difficulté qui remonte fréquemment est la lourdeur de code pour afficher les **marges** dans le tableau, qui constituent pourtant des points de comparaison indispensables pour les analyses. Les marges sont aussi souvent appelés "totaux", mais on préfèrera dans la suite parler de "marges", le terme étant jugé moins ambigü lorsque la statistique demandée n'est pas une somme.
+- Ce sujet - la fabrication de tableaux - est au coeur des activités d'un chargé d'études travaillant à l'Insee ou en SSM, qui seront peut-être plus particulièrement concernés par cette fiche.
 
-- Contrairement à Sas qui proposait la proc tabulate par exemple, R ne propose pas de procédure "de référence" pour construire un tableau de statistiques descriptives. En outre, même parmi les statisticiens qui n'utilisent pas ou plus Sas, beaucoup ont pour habitude d'avoir une première étape de constitution de résultats en R, puis une seconde étape de retravail de tableaux directement via un tableur de type Excel ou Calc (avec des tableaux croisés dynamiques). Pourtant, internaliser la production de tableaux de synthèse dans sa chaîne de traitements comprend de nombreux avantages, parmi lesquels l'automatisation de tâches de mise en forme, la reproductibilité des analyses, ou encore l'intégration directe de tableaux dans des rapports (qmd, Rmd), et ainsi s'éviter des allers/retours avec un tableaur, chronophages et souvent risques d'erreur.
+- Une difficulté qui remonte fréquemment est l'affichage des **marges** dans le tableau, qui constituent pourtant des points de comparaison indispensables pour les analyses. Les marges sont aussi souvent appelés "totaux", mais on préfèrera dans la suite parler de "marges", le terme étant jugé moins ambigü lorsque la statistique demandée n'est pas une somme. D'autres difficultés courantes sont la pondération des statistiques ou la réutilisation du tableau par un tiers.
 
-- En réalité, R offre de nombreuses possibilités pour internaliser l'ensemble des étapes de réalisation d'un tableau de statistiques descriptives, pas toujours connues. Ainsi, de nombreux packages de statistiques descriptives ont été développés, souvent pour répondre à des besoins métiers spécifiques, et chacun présentant donc des avantages et des inconvénients. Il est nécessaire de maintenir une veille régulière sur ce sujet, des solutions satisfaisantes pouvant faire jour à tout moment.
+- Contrairement à Sas qui proposait la *proc tabulate* par exemple, R ne propose pas de procédure "de référence" pour construire un tableau de statistiques descriptives. En outre, même parmi les statisticiens qui n'utilisent pas ou plus Sas, beaucoup ont pour habitude d'avoir une première étape de constitution de résultats en R, puis une seconde étape de retravail de tableaux directement via un tableur de type Excel ou Calc (avec des tableaux croisés dynamiques). Pourtant, internaliser la production de tableaux de synthèse dans sa chaîne de traitements R comprend de nombreux avantages, parmi lesquels la reproductibilité des analyses, ou encore l'intégration directe de tableaux dans des rapports (qmd, Rmd), et ainsi s'éviter des allers/retours avec un tableaur, chronophages et souvent risques d'erreur.
+
+- En réalité, R offre de nombreuses possibilités pour internaliser l'ensemble des étapes de réalisation d'un tableau de statistiques descriptives, pas toujours connues. Ainsi, de nombreux packages de statistiques descriptives ont été développés, souvent pour répondre à des besoins métiers spécifiques, et chacun présentant donc des avantages et des inconvénients. Une proposition de package créé pour les besoins  courants à l'Insee est présentée à la fin de cette fiche. Il est nécessaire de maintenir une veille régulière sur ce sujet, des solutions satisfaisantes pouvant faire jour à tout moment.
 
 - Les fiches [Manipuler des données avec le `tidyverse`](#tidyverse) et [Faire des graphiques avec `ggplot2`](#ggplot2) sont complémentaires de la présente fiche.
 
@@ -131,17 +133,70 @@ iris |>
 
 ## Packages dédiés
 
-### Tableau de synthèse
+### janitor
 
-Parler de janitor, gtsummary, tables, crosstable, ...
+La vignette qui vous dira tout sur Janitor : [ici](https://cran.r-project.org/web/packages/janitor/vignettes/tabyls.html)
 
-### Exemples reproductibles
+-   fonction principale : **`tabyl`** ;
+-   customisation avec les fonctions **`adorn_`**\* ;
+-   avantages : gestion des marges +/-, esthétique +, tidyverse-compatible ;
+-   limites : 3 variables max, comptages uniquement, pas de pondération.
+
+```{r janitor}
+library(janitor)
+humans <- starwars |> 
+  filter(species == "Human")
+
+humans |> 
+  tabyl(eye_color)
+
+humans |> 
+  tabyl(gender, eye_color)
+
+# Pour afficher des tableaux élégants : fonctions adorn_*
+humans |> 
+  tabyl(gender, eye_color) |> 
+  adorn_totals(c("row", "col")) |> 
+  adorn_percentages("row") |> 
+  adorn_pct_formatting(rounding = "half up", digits = 0) |>
+  adorn_ns() |>
+  adorn_title("combined") |>
+  knitr::kable()
+
+```
+
+### gtsummary
+
+La vignette qui vous dira tout sur gtsummary : [ici](https://www.danieldsjoberg.com/gtsummary/articles/tbl_summary.html)
+
+-   fonction principale : **`tbl_summary`** ;
+
+-   customisation avec les fonctions **`add_*`** ;
+
+-   voir aussi : `tbl_svysummary()`, `tbl_cross()` ;
+
+-   **avantages** : esthétique ++, tidyverse-compatible, plus orienté "statistique" (p-value, pondération ...) ;
+
+-   **limites** : gestion des marges +/-, rendu pas toujours adapté.
+
+```{r gtsummary}
+library(gtsummary)
+iris |> 
+  select(Petal.Length, Petal.Width, Species) |> # commenter cette ligne et voir ce que ça fait
+  tbl_summary(by = Species, 
+              statistic = c("Petal.Length", "Petal.Width") ~ "{mean}") |> 
+  add_overall()
+
+```
+
+### Panorama général d'autres packages dédiés : tableau de synthèse
+
 
 ## Le package `tabloid`, une solution maison pour l'Insee
 
 ### Pourquoi encore un autre package ?
 
-Certains besoins courants ne sont pas (encore ?) couverts par d'autres packages :
+Comme on l'a vu, les packages qui permettent de réaliser des tableaux de statistiques descriptives sont nombreux. Pourtant, certains besoins courants ne sont pas (encore ?) couverts :
 
 -   besoin systématique d'avoir les marges intermédiaires ;
 
@@ -153,19 +208,17 @@ Certains besoins courants ne sont pas (encore ?) couverts par d'autres packages 
 
 -   envie d'avoir une syntaxe consistante, qui "coche toutes les cases" en même temps.
 
-Le package `tabloid` vise à faciliter la réalisation de tableaux croisés de statistiques descriptives ;
+C'est pour répondre à cette ambition que le package `tabloid` a été conçu. Il correspond à des besoins standard des chargés d'études à l'Insee :
 
--   il est conçu pour des besoins usuels des chargés d'études à l'Insee ;
-
--   il propose une syntaxe unique pour la plupart des statistiques usuelles, et peut s'enchaîner avec des `%>%` ou des `|>`, à la suite par exemple d'instructions en `dplyr` ;
+- il propose une syntaxe unique pour la plupart des statistiques usuelles, et peut s'enchaîner avec des `%>%` ou des `|>`, à la suite par exemple d'instructions en `dplyr` ;
 
 -   les tableaux croisés produits peuvent être réutilisés :
 
-    -   soit via l'export en .xlsx,
+    -   soit *via* l'export en .xlsx,
     
-    -   soit via la génération d'un tableau en html, pour insertion dans un .Rmd ou .qmd.
+    -   soit *via* la génération d'un tableau en html, pour insertion dans un .Rmd ou .qmd.
 
-Le package est documenté par des vignettes, qui fournissent plus de détails que cette présentation.
+Le package est documenté par des vignettes, qui fournissent plus de détails que cette fiche.
 
 *Remarque : le package `tabloid` n'est pas sur le CRAN. Il faut donc l'installer depuis le dépôt gitlab.insee.fr ou InseeFrLab où il est hébergé.*
 
@@ -180,14 +233,16 @@ Le package est documenté par des vignettes, qui fournissent plus de détails qu
 
 **Les fonctions de customisation**
 
--   **`tab_pct`** : pour calculer des pourcentages lignes ou colonnes
--   **`tab_mask`** : pour blanchir certaines cellules sous un seuil (de comptage ou de valeur)
--   **`tab_round`** : pour afficher avec le bon niveau d'arrondi et éventuellement gérer la cohérence des sommes à 100 %
+-   **`tab_pct`** : pour calculer des pourcentages lignes ou colonnes (cette syntaxe en deux temps, *tab_build* puis *tab_pct*, indique qu'il s'agit d'un calcul de deuxième niveau qui s'ajoute à un premier calcul, qui dans ce contexte est un comptage ou une somme)
+-   **`tab_mask`** : pour blanchir certaines cellules sous un seuil (de comptage ou de valeur) : cette option peut être utilisée soit pour se mettre une alerte de robustesse, soit pour traiter du secret statistique primaire (le secret secondaire n'est pas géré)
+-   **`tab_round`** : pour afficher les résultats avec le bon niveau d'arrondi et éventuellement gérer la cohérence des sommes à 100 % (en cas de contrainte éditoriale sur cette question)
 
 **Les fonctions d'affichage**
 
--   **`tab_render`** : pour afficher le joli tableau → conseil de l'appliquer à chaque fois
--   **`tab_xls`** : pour exporter le joli tableau dans un .xlsx → conseil de ne pas en abuser sauf besoin particulier de repasser par Calc (diffusion, envoi partenaire, etc.)
+-   **`tab_render`** : pour afficher le "joli" tableau → il est conseillé de l'appliquer à chaque fois, a minima sans option
+-   **`tab_xls`** : pour exporter le "joli" tableau dans un .xlsx → il est conseillé de ne pas abuser de cette fonction sauf besoin justifié de repasser par un tableur (par exemple l'envoi à un tiers qui demande ce format)
+
+Ces deux fonctions se veulent similaires dans les options qu'elles proposent (ajout de titre, de notes de bas de figure, etc).
 
 
 ### Exemple
